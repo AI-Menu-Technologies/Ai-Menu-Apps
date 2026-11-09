@@ -1,0 +1,223 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isStaff() {
+      return isSignedIn()
+        && exists(
+          /databases/$(database)/documents/staff_users/$(request.auth.uid)
+        )
+        && get(
+          /databases/$(database)/documents/staff_users/$(request.auth.uid)
+        ).data.active == true;
+    }
+
+    /*
+     * ---------------------------------------------------------
+     * VENUES
+     * ---------------------------------------------------------
+     */
+
+    match /venues/{venueId} {
+
+      // Р С’Р Р†РЎвЂљР С•РЎР‚Р С‘Р В·Р С•Р Р†Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р С—Р С•Р В»РЎРЉР В·Р С•Р Р†Р В°РЎвЂљР ВµР В»Р С‘ Р СР С•Р С–РЎС“РЎвЂљ Р Р†Р С‘Р Т‘Р ВµРЎвЂљРЎРЉ Р В·Р В°Р Р†Р ВµР Т‘Р ВµР Р…Р С‘РЎРЏ.
+      allow read: if isSignedIn();
+
+      /*
+       * Р СџР ВµРЎР‚Р Р†Р С•Р Р…Р В°РЎвЂЎР В°Р В»РЎРЉР Р…Р С•Р Вµ РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р С‘Р Вµ Р В·Р В°Р Р†Р ВµР Т‘Р ВµР Р…Р С‘РЎРЏ.
+       *
+       * Р СњР С•Р Р†РЎвЂ№Р в„– Р Р†Р В»Р В°Р Т‘Р ВµР В»Р ВµРЎвЂ  Р СР С•Р В¶Р ВµРЎвЂљ РЎРѓР С•Р В·Р Т‘Р В°РЎвЂљРЎРЉ РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎвЂљР С• Р В·Р В°Р Р†Р ВµР Т‘Р ВµР Р…Р С‘Р Вµ,
+       * Р С–Р Т‘Р Вµ ownerUid РЎР‚Р В°Р Р†Р ВµР Р… Р ВµР С–Р С• РЎРѓР С•Р В±РЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…Р С•Р СРЎС“ Firebase UID.
+       */
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.venueId == venueId
+        && request.resource.data.status == 'active';
+
+      /*
+       * Р вЂ™ Р Т‘Р В°Р В»РЎРЉР Р…Р ВµР в„–РЎв‚¬Р ВµР С Р Р†Р В»Р В°Р Т‘Р ВµР В»Р ВµРЎвЂ  РЎРЊРЎвЂљР С•Р С–Р С• Р В·Р В°Р Р†Р ВµР Т‘Р ВµР Р…Р С‘РЎРЏ Р С‘Р В»Р С‘ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№Р в„–
+       * РЎРѓР С•РЎвЂљРЎР‚РЎС“Р Т‘Р Р…Р С‘Р С” Р СР С•Р В¶Р ВµРЎвЂљ Р С‘Р В·Р СР ВµР Р…РЎРЏРЎвЂљРЎРЉ Р ВµР С–Р С• Р Т‘Р В°Р Р…Р Р…РЎвЂ№Р Вµ.
+       *
+       * ownerUid Р СР ВµР Р…РЎРЏРЎвЂљРЎРЉ Р Р…Р ВµР В»РЎРЉР В·РЎРЏ.
+       */
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      /*
+       * Р Р€Р Т‘Р В°Р В»РЎРЏРЎвЂљРЎРЉ Р В·Р В°Р Р†Р ВµР Т‘Р ВµР Р…Р С‘Р Вµ Р С—Р С•Р С”Р В° Р Р…Р Вµ РЎР‚Р В°Р В·РЎР‚Р ВµРЎв‚¬Р В°Р ВµР С.
+       * Р В¤РЎС“Р Р…Р С”РЎвЂ Р С‘РЎР‹ РЎС“Р Т‘Р В°Р В»Р ВµР Р…Р С‘РЎРЏ РЎРѓР Т‘Р ВµР В»Р В°Р ВµР С Р С•РЎвЂљР Т‘Р ВµР В»РЎРЉР Р…Р С• Р С‘ Р В±Р ВµР В·Р С•Р С—Р В°РЎРѓР Р…Р С•,
+       * Р С”Р С•Р С–Р Т‘Р В° Р С•РЎРѓР Р…Р С•Р Р†Р Р…Р В°РЎРЏ РЎР‚Р ВµР С–Р С‘РЎРѓРЎвЂљРЎР‚Р В°РЎвЂ Р С‘РЎРЏ Р В±РЎС“Р Т‘Р ВµРЎвЂљ Р С—Р С•Р В»Р Р…Р С•РЎРѓРЎвЂљРЎРЉРЎР‹ Р С–Р С•РЎвЂљР С•Р Р†Р В°.
+       */
+      allow delete: if false;
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * STAFF USERS
+     * ---------------------------------------------------------
+     */
+
+    match /staff_users/{staffUid} {
+
+      /*
+       * Р РЋР С•РЎвЂљРЎР‚РЎС“Р Т‘Р Р…Р С‘Р С”/Р Р†Р В»Р В°Р Т‘Р ВµР В»Р ВµРЎвЂ  Р СР С•Р В¶Р ВµРЎвЂљ РЎвЂЎР С‘РЎвЂљР В°РЎвЂљРЎРЉ РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎРѓР Р†Р С•Р в„– Р С—РЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ.
+       */
+      allow read: if isSignedIn()
+        && request.auth.uid == staffUid;
+
+      /*
+       * Р СџР ВµРЎР‚Р Р†Р С•Р Р…Р В°РЎвЂЎР В°Р В»РЎРЉР Р…Р С•Р Вµ РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р С‘Р Вµ Р Р†Р В»Р В°Р Т‘Р ВµР В»РЎРЉРЎвЂ Р В°.
+       *
+       * Р вЂ™Р С’Р вЂ“Р СњР С›:
+       * Р вЂќР С•Р С”РЎС“Р СР ВµР Р…РЎвЂљ staff_users РЎРѓР С•Р В·Р Т‘Р В°РЎвЂРЎвЂљРЎРѓРЎРЏ Р С•Р Т‘Р Р…Р С•Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…Р С• РЎРѓ venues
+       * РЎвЂЎР ВµРЎР‚Р ВµР В· Firestore batch.
+       *
+       * getAfter() Р С—Р С•Р В·Р Р†Р С•Р В»РЎРЏР ВµРЎвЂљ Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚Р С‘РЎвЂљРЎРЉ РЎС“Р В¶Р Вµ Р В·Р В°Р С—Р С‘РЎРѓР В°Р Р…Р Р…Р С•Р Вµ РЎРѓР С•РЎРѓРЎвЂљР С•РЎРЏР Р…Р С‘Р Вµ
+       * Р С—Р С•РЎРѓР В»Р Вµ Р Р†РЎвЂ№Р С—Р С•Р В»Р Р…Р ВµР Р…Р С‘РЎРЏ Р Р†РЎРѓР ВµР С–Р С• batch.
+       */
+      allow create: if isSignedIn()
+        && request.auth.uid == staffUid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'owner'
+        && request.resource.data.active == true
+        && existsAfter(
+          /databases/$(database)/documents/venues/$(request.resource.data.venueId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/venues/$(request.resource.data.venueId)
+        ).data.ownerUid == request.auth.uid;
+
+      /*
+       * Р вЂ™Р В»Р В°Р Т‘Р ВµР В»Р ВµРЎвЂ  Р СР С•Р В¶Р ВµРЎвЂљ Р С•Р В±Р Р…Р С•Р Р†Р В»РЎРЏРЎвЂљРЎРЉ РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎРѓР Р†Р С•Р в„– staff-Р С—РЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ.
+       * UID, РЎР‚Р С•Р В»РЎРЉ Р С‘ venueId Р Р…Р ВµР В»РЎРЉР В·РЎРЏ Р С—Р С•Р Т‘Р СР ВµР Р…Р С‘РЎвЂљРЎРЉ.
+       */
+      allow update: if isSignedIn()
+        && request.auth.uid == staffUid
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.venueId == resource.data.venueId;
+
+      allow delete: if false;
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * USERS
+     * ---------------------------------------------------------
+     */
+
+    match /users/{userUid} {
+
+      allow read: if isSignedIn()
+        && request.auth.uid == userUid;
+
+      // РЎРѕР·РґР°РЅРёРµ РїСЂРѕС„РёР»СЏ РіРѕСЃС‚СЏ.
+      // РЎРѕР·РґР°РЅРёРµ РїСЂРѕС„РёР»СЏ РІР»Р°РґРµР»СЊС†Р° С‚РѕР»СЊРєРѕ РІРјРµСЃС‚Рµ СЃ РµРіРѕ Р·Р°РІРµРґРµРЅРёРµРј.
+      allow create: if isSignedIn()
+        && request.auth.uid == userUid
+        && request.resource.data.uid == request.auth.uid
+        && (
+          (
+            request.resource.data.accountType == 'guest'
+            && request.resource.data.lastVenueId is string
+            && exists(
+              /databases/$(database)/documents/venues/$(request.resource.data.lastVenueId)
+            )
+          )
+          ||
+          (
+            request.resource.data.accountType == 'owner'
+            && request.resource.data.venueId is string
+            && existsAfter(
+              /databases/$(database)/documents/venues/$(request.resource.data.venueId)
+            )
+            && getAfter(
+              /databases/$(database)/documents/venues/$(request.resource.data.venueId)
+            ).data.ownerUid == request.auth.uid
+          )
+        );
+
+      // РќРµР»СЊР·СЏ РјРµРЅСЏС‚СЊ UID Рё С‚РёРї Р°РєРєР°СѓРЅС‚Р°.
+      allow update: if isSignedIn()
+        && request.auth.uid == userUid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.accountType == resource.data.accountType;
+
+      allow delete: if false;
+
+      // РСЃС‚РѕСЂРёСЏ РїРѕСЃРµС‰Р°РµРјС‹С… Р·Р°РІРµРґРµРЅРёР№.
+      match /venues/{venueId} {
+
+        allow read: if isSignedIn()
+          && request.auth.uid == userUid;
+
+        allow create, update: if isSignedIn()
+          && request.auth.uid == userUid
+          && request.resource.data.venueId == venueId
+          && exists(
+            /databases/$(database)/documents/venues/$(venueId)
+          );
+
+        allow delete: if false;
+      }
+    }
+
+    match /tables/{tableId} {
+
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.status == 'reserved'
+        && request.resource.data.guestUid == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && (
+          (
+            resource.data.guestUid == request.auth.uid
+            && request.resource.data.guestUid == request.auth.uid
+          )
+          ||
+          (
+            resource.data.status == 'free'
+            && request.resource.data.status == 'reserved'
+            && request.resource.data.guestUid == request.auth.uid
+          )
+        );
+
+      allow delete: if false;
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * ORDERS
+     * ---------------------------------------------------------
+     */
+
+    match /orders/{orderId} {
+
+      allow read, write: if isSignedIn();
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * EVERYTHING ELSE
+     * ---------------------------------------------------------
+     */
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
